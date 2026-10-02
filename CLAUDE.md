@@ -22,7 +22,8 @@ fonts/                  Patrick Hand woff2 (latin + latin-ext kvůli diakritice)
                         fonts/OFL.txt = copyright + licence SIL OFL 1.1 – musí se šířit s písmem, nemazat
                         (uvedení autora a odkaz na licenci je i v úvodní kartě, .credit)
 icons/                  192, 512, maskable-512, apple-touch-icon 180, favicon-32
-README.md               návod k nasazení
+README.md               popis hry s náhledy a návod k nasazení
+docs/nahledy/           náhledy úrovní pro README (JPEG 1500 px, vykreslené přes renderList); nenasazuje se
 ```
 Spuštění lokálně: `python3 -m http.server` (service worker nefunguje z file://).
 Nasazení: `npx wrangler deploy` (Cloudflare Worker se statickými soubory, konfigurace ve `wrangler.jsonc`,
