@@ -28,7 +28,7 @@ Spuštění lokálně: `python3 -m http.server` (service worker nefunguje z file
 Nasazení: `npx wrangler deploy` (Cloudflare Worker se statickými soubory, konfigurace ve `wrangler.jsonc`,
 co se nenahrává je v `.assetsignore`). Běží na https://kočky.hruškovi.eu (`xn--koky-hua.xn--hrukovi-sqb.eu`).
 Náhled bez nasazení: `npx wrangler versions upload` vypíše „Version Preview URL“
-(`https://<verze>-najdi-kocku.hruska-martin.workers.dev`), produkce se nezmění.
+(`https://<verze>-najdi-kocku.<účet>.workers.dev`), produkce se nezmění.
 Nasazení hotové verze: `npx wrangler versions deploy` nebo `npx wrangler deploy`.
 
 Vývoj: `?level=<id>&seed=<n>` otevře konkrétní obrázek bez úvodní karty a nic neukládá.
