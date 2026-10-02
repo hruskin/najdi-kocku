@@ -188,9 +188,9 @@ Vývoj: `?level=<id>&seed=<n>` otevře konkrétní obrázek bez úvodní karty a
   Pak v prohlížeči projít řadu seedů a ověřit `catVisibility` aspoň 0.2.
   U úrovní, které se neměly měnit, porovnat otisk spotů, geometrie a pozic koček s předchozí verzí.
 - Veškeré texty v UI jsou česky.
+- Hra je bez zvuku. Mňouknutí (generovaná i nahrávky) se zkusila a zamítla, nenavrhovat znovu.
 
 ## Nápady na pokračování
 - Další prostředí (kuchyně, zahrada, zima), víc koček a větší plátno.
 - Minimapa nebo seznam nalezených koček.
-- Zvuk (mňouknutí) a haptika.
 - Sdílení výsledku, žebříček časů.
