@@ -1,0 +1,9 @@
+{
+  "name": "najdi-kocku",
+  "compatibility_date": "2026-09-23",
+  "assets": { "directory": "." },
+  // náhledové adresy pro `wrangler versions upload` (testování před nasazením)
+  "preview_urls": true,
+  // kočky.hruškovi.eu
+  "routes": [{ "pattern": "xn--koky-hua.xn--hrukovi-sqb.eu", "custom_domain": true }]
+}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galerie úkrytů</title>
+<style>
+  :root{--bg:#f4f5f8;--card:#fff;--ink:#1d2b53;--muted:#6b7488;--bad:#c62828;--warn:#b26a00;--ok:#2e7d32}
+  @media (prefers-color-scheme:dark){:root{--bg:#10131a;--card:#1a1f2b;--ink:#d6def0;--muted:#8d97ad}}
+  body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,sans-serif}
+  h1{font-size:20px;margin:0 0 4px} h2{font-size:16px;margin:22px 0 8px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .bar a{padding:4px 10px;border-radius:6px;background:var(--card);color:var(--ink);text-decoration:none}
+  .bar a.on{outline:2px solid var(--ink)}
+  .muted{color:var(--muted)}
+  .grid{display:flex;flex-wrap:wrap;gap:10px}
+  figure{margin:0;background:var(--card);border-radius:8px;padding:6px;width:232px}
+  figure img{display:block;width:220px;height:220px;object-fit:contain;background:#fff;border-radius:4px}
+  figcaption{font-size:12px;margin-top:4px}
+  .bad{color:var(--bad);font-weight:600}.warn{color:var(--warn);font-weight:600}.ok{color:var(--ok)}
+  table{border-collapse:collapse;margin:8px 0}td,th{padding:2px 10px 2px 0;text-align:left;font-variant-numeric:tabular-nums}
+  iframe{position:absolute;left:-9999px;width:800px;height:600px}
+</style>
+</head>
+<body>
+<h1>Galerie úkrytů</h1>
+<p class="muted">Pro každý druh úkrytu několik příkladů kočky <b>před nalezením</b> (jak ji vidí hráč), uprostřed výřezu.
+Režim <b>všechny druhy úkrytů</b> ukáže každý druh (i takové, které hra v daném obrázku vyřadí, protože kočka je
+pod prahem viditelnosti). Režim <b>jak ve hře</b> ukáže kočky přesně jak je rozmístí hra – tam je chybou každá kočka,
+kterou musela nakreslit navrch pojistka. Parametry: <code>?scene=louka&amp;max=4</code> nebo <code>?scene=louka&amp;mode=game&amp;n=20</code>.
+Seřazeno od nejhorších.</p>
+<div class="bar" id="scenes"></div>
+<div id="out">Načítám…</div>
+<iframe id="game"></iframe>
+<script>
+const qp=new URLSearchParams(location.search),scene=qp.get('scene')||'mesto',max=+(qp.get('max')||4),seeds=+(qp.get('seeds')||300);
+// mode=game: kočky přesně jak je rozmístí hra (newScene včetně opakovaného výběru a pojistky) pro seedy 1..n
+const mode=qp.get('mode')||'spots',nGame=+(qp.get('n')||20);
+const ids=['mesto','louka','knihovna','muzeum','kavarna','plaz','hradcany'];
+document.getElementById('scenes').innerHTML=ids.map(id=>`<a href="?scene=${id}&max=${max}&mode=${mode}&n=${nGame}" class="${id===scene?'on':''}">${id}</a>`).join('')
+  +` <span class="muted">režim:</span> <a href="?scene=${scene}&max=${max}" class="${mode!=='game'?'on':''}">všechny druhy úkrytů</a>`
+  +`<a href="?scene=${scene}&mode=game&n=${nGame}" class="${mode==='game'?'on':''}">jak ve hře (${nGame} seedů)</a>`;
+const fr=document.getElementById('game');
+fr.src='../?level='+encodeURIComponent(scene)+'&seed=1&t='+Date.now();
+// Běží uvnitř hry (stejný původ): vybere pro každý druh úkrytu až `max` míst přes různé seedy,
+// postaví scénu s kočkami právě tam, změří viditelnost a vykreslí výřez.
+const GAL=`(function(lv,maxPer,maxSeed){
+  const out={},opts=[{kitten:false,dark:false,stripes:false,dir:1,k:1,alt:false},{kitten:true,dark:false,stripes:true,dir:-1,k:1,alt:true},
+    {kitten:false,dark:true,stripes:false,dir:-1,k:1,alt:false},{kitten:false,dark:false,stripes:true,dir:1,k:1.1,alt:true}];
+  for(let s=1;s<=maxSeed;s++){const sd=s*2654435761>>>0,dry=buildScene(lv,sd,null),sel=new Map(),n={};
+    dry.spots.forEach((p,i)=>{const have=(out[p.kind]||[]).length+(n[p.kind]||0);if(have>=maxPer)return;
+      if(p.x<40||p.x>W-40||p.y<40||p.y>H-40)return;
+      for(const j of sel.keys())if(Math.hypot(dry.spots[j].x-p.x,dry.spots[j].y-p.y)<170)return;
+      sel.set(i,opts[have%opts.length]);n[p.kind]=(n[p.kind]||0)+1});
+    if(!sel.size){if(s>40)break;continue}
+    const sc=buildScene(lv,sd,sel);DL=sc.L;CATS=sc.cats;found=new Map();
+    [...sel.keys()].forEach((si,ci)=>{const c=CATS[ci],p=dry.spots[si];if(!c)return;
+      const v=catVisibility(ci),hv=catVisibility(ci,true),half=Math.max(60,c.r*3),x0=c.x-half,y0=c.y-half*1.15,sz=half*2,px=220/sz;
+      const cv=document.createElement('canvas');cv.width=cv.height=220;const g=cv.getContext('2d');
+      g.setTransform(px,0,0,px,-x0*px,-y0*px);g.fillStyle=col.desk;g.fillRect(x0,y0,sz,sz);
+      g.save();g.beginPath();g.rect(0,0,W,H);g.clip();g.fillStyle=col.paper;g.fillRect(0,0,W,H);renderList(g,px,[x0,y0,x0+sz,y0+sz],true);g.restore();
+      (out[p.kind]||(out[p.kind]=[])).push({seed:sd,x:Math.round(c.x),y:Math.round(c.y),v,hv,o:sel.get(si),img:cv.toDataURL('image/png')})});
+    if(s>40&&Object.values(out).every(a=>a.length>=maxPer))break}
+  return out})`;
+// Režim „jak ve hře“: pro každý seed skutečné newScene; vis/hlava se měří na výsledném obrázku,
+// kočky přesunuté pojistkou navrch (lifted) jsou chyba scény – ve hře vypadají nalepené.
+const GAME=`(function(id,n){const out={};
+  const crop=(c)=>{const half=Math.max(60,c.r*3),x0=c.x-half,y0=c.y-half*1.15,sz=half*2,px=220/sz,cv=document.createElement('canvas');cv.width=cv.height=220;
+    const g=cv.getContext('2d');g.setTransform(px,0,0,px,-x0*px,-y0*px);g.fillStyle=col.desk;g.fillRect(x0,y0,sz,sz);
+    g.save();g.beginPath();g.rect(0,0,W,H);g.clip();g.fillStyle=col.paper;g.fillRect(0,0,W,H);renderList(g,px,[x0,y0,x0+sz,y0+sz],true);g.restore();return cv.toDataURL('image/png')};
+  for(let s=1;s<=n;s++){const sd=s*2654435761>>>0;lv=id;newScene(sd);found=new Map();
+    CATS.forEach((c,ci)=>{const k=c.kind||'?';(out[k]||(out[k]=[])).push({seed:sd,x:Math.round(c.x),y:Math.round(c.y),v:catVisibility(ci),hv:catVisibility(ci,true),
+      lifted:!!c.lifted,o:{kitten:c.kitten,dark:c.dark},img:crop(c)})})}
+  return out})`;
+const pct=v=>Math.round(v*100)+' %',cls=(v,lim)=>v<lim?'bad':v<lim+.15?'warn':'ok';
+fr.onload=()=>setTimeout(()=>{
+  const w=fr.contentWindow;let res;const t0=performance.now();
+  try{res=mode==='game'?w.eval(GAME)(scene,nGame):w.eval(GAL)(scene,max,seeds)}
+  catch(e){document.getElementById('out').textContent='Chyba: '+e.message;return}
+  const VM=w.eval('VIS_MIN'),HM=w.eval('HEAD_MIN'),game=mode==='game';
+  const kinds=Object.entries(res).map(([k,a])=>({k,a,minV:Math.min(...a.map(x=>x.v)),minH:Math.min(...a.map(x=>x.hv)),lift:a.filter(x=>x.lifted).length}))
+    .sort((p,q)=>(q.lift-p.lift)||Math.min(p.minH/HM,p.minV/VM)-Math.min(q.minH/HM,q.minV/VM));
+  const opt=o=>[o.kitten?'kotě':'kočka',o.dark?'černá':'',o.stripes?'mourek':'',o.alt?'alt':''].filter(Boolean).join(', ');
+  let html=`<p class="muted">Scéna <b>${scene}</b>, režim <b>${game?'jak ve hře':'všechny druhy úkrytů'}</b>: ${kinds.length} druhů, ${kinds.reduce((s,k)=>s+k.a.length,0)} koček, ${Math.round(performance.now()-t0)} ms.
+    Prahy: tělo ${pct(VM)}, hlava ${pct(HM)}. Seed z popisku otevře obrázek ve hře: <code>/?level=${scene}&amp;seed=…</code></p>`;
+  html+=`<table><tr><th>druh</th><th>koček</th><th>min. tělo</th><th>min. hlava</th>${game?'<th>nakreslena navrch</th>':''}</tr>`+kinds.map(k=>
+    `<tr><td><a href="#k-${k.k}">${k.k}</a></td><td>${k.a.length}</td><td class="${cls(k.minV,VM)}">${pct(k.minV)}</td><td class="${cls(k.minH,HM)}">${pct(k.minH)}</td>${game?`<td class="${k.lift?'bad':'ok'}">${k.lift}</td>`:''}</tr>`).join('')+'</table>';
+  for(const k of kinds){html+=`<h2 id="k-${k.k}">${k.k}</h2><div class="grid">`+k.a.sort((p,q)=>p.hv-q.hv).map(x=>
+    `<figure><img src="${x.img}" alt="${k.k}, seed ${x.seed}"><figcaption>seed ${x.seed} · (${x.x}, ${x.y}) · ${opt(x.o)}<br>
+     tělo <span class="${cls(x.v,VM)}">${pct(x.v)}</span> · hlava <span class="${cls(x.hv,HM)}">${pct(x.hv)}</span>
+     ${game?(x.lifted?' · <span class="bad">pojistka ji nakreslila navrch</span>':''):(x.v<VM||x.hv<HM?' · <span class="bad">hra úkryt v tomto obrázku vyřadí</span>':'')}</figcaption></figure>`).join('')+'</div>'}
+  document.getElementById('out').innerHTML=html;
+  document.title='Galerie úkrytů – '+scene;
+},300);
+</script>
+</body>
+</html>

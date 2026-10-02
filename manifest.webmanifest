@@ -1,0 +1,19 @@
+{
+  "name": "Najdi kočku",
+  "short_name": "Najdi kočku",
+  "description": "Hledej kočky a koťata schované v kreslené ilustraci.",
+  "lang": "cs",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#cfd7e4",
+  "theme_color": "#fbfcfd",
+  "categories": ["games", "kids", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

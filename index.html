@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Najdi kočku</title>
+<meta name="description" content="Hledej kočky a koťata schované v kreslené ilustraci.">
+<meta name="theme-color" content="#fbfcfd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161b25" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Najdi kočku">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/patrick-hand-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Písmo Patrick Hand, Copyright (c) 2010-2012 Patrick Wagesreiter (mail@patrickwagesreiter.at),
+   licence SIL Open Font License 1.1 – plné znění v fonts/OFL.txt (musí se šířit spolu s písmem). */
+@font-face{font-family:"Patrick Hand";font-style:normal;font-weight:400;font-display:swap;
+  src:url(fonts/patrick-hand-latin-ext-400-normal.woff2) format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Patrick Hand";font-style:normal;font-weight:400;font-display:swap;
+  src:url(fonts/patrick-hand-latin-400-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{
+  --paper:#fbfcfd; --ink:#1d2b53; --shade:#e3e8f1; --desk:#cfd7e4; --hl:#ffd60a; --hl-ink:#1d2b53;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ --paper:#161b25; --ink:#d6def0; --shade:#232a39; --desk:#0b0e14; color-scheme:dark; }
+}
+:root[data-theme="dark"]{ --paper:#161b25; --ink:#d6def0; --shade:#232a39; --desk:#0b0e14; color-scheme:dark; }
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%; scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%; margin:0; background:var(--desk); color:var(--ink);
+  font-family:"Patrick Hand","Comic Sans MS","Segoe Print",cursive;
+  overflow:hidden; overscroll-behavior:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent}
+#cv{position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab}
+#cv.drag{cursor:grabbing}
+.sk{background:var(--paper); border:2px solid var(--ink); border-radius:255px 14px 225px 14px/14px 225px 14px 255px}
+button{font:inherit; color:inherit; background:none; border:0; cursor:pointer; padding:0}
+button:focus-visible{outline:3px solid var(--hl); outline-offset:3px}
+
+.bar{position:fixed; left:10px; right:10px; top:calc(env(safe-area-inset-top,0px) + 10px);
+  max-width:620px; margin:0 auto; display:flex; align-items:center; gap:10px; padding:5px 6px 5px 16px}
+.count{font-size:27px; line-height:1; white-space:nowrap}
+.count small{font-size:17px; opacity:.7}
+.prog{flex:1; min-width:30px; height:11px; border:1.5px solid var(--ink); border-radius:9px 3px 8px 4px; overflow:hidden}
+.prog i{display:block; height:100%; width:0; background:var(--hl); transition:width .5s}
+#time{font-size:18px; opacity:.7; min-width:40px; text-align:right; font-variant-numeric:tabular-nums}
+.ib{width:42px; height:42px; flex-shrink:0; display:grid; place-items:center; border-radius:50%}
+/* malé telefony (320–380 px): užší lišta, ať se tlačítka vejdou a zůstanou velká na dotyk */
+@media (max-width:380px){
+  .bar{gap:4px; padding-left:10px; left:6px; right:6px}
+  .count{font-size:22px} .count small{display:none}
+  #time{min-width:0; font-size:15px}
+  .ib{width:38px}
+}
+.ib svg{width:25px; height:25px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.ib:active{transform:scale(.9)}
+.zoom{position:fixed; right:calc(env(safe-area-inset-right,0px) + 12px); bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
+  display:flex; flex-direction:column; gap:9px}
+.zoom .ib{background:var(--paper); border:2px solid var(--ink); width:48px; height:48px;
+  border-radius:52% 48% 50% 46%/48% 52% 46% 50%}
+
+#toast{position:fixed; left:50%; top:calc(env(safe-area-inset-top,0px) + 76px); z-index:5;
+  transform:translate(-50%,-8px) rotate(-2deg); padding:4px 18px 6px; font-size:23px; white-space:nowrap;
+  background:var(--hl); color:var(--hl-ink); border:2px solid var(--hl-ink);
+  border-radius:14px 225px 14px 255px/255px 14px 225px 14px;
+  opacity:0; pointer-events:none; transition:opacity .2s, transform .25s}
+#toast.on{opacity:1; transform:translate(-50%,0) rotate(-2deg)}
+
+.modal{position:fixed; inset:0; z-index:10; display:grid; align-items:safe center; justify-items:center; padding:70px 24px 24px; overflow-y:auto;
+  background:color-mix(in srgb, var(--desk) 60%, transparent); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px)}
+.modal[hidden]{display:none}
+.card{position:relative; max-width:360px; width:100%; padding:30px 26px 24px; box-shadow:5px 6px 0 var(--ink)}
+.peek{position:absolute; width:96px; top:-58px; right:34px; z-index:-1}
+.peek path,.peek ellipse{stroke:var(--ink); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round}
+.card h1{font-size:50px; line-height:.95; margin:0 0 12px; font-weight:400; transform:rotate(-1.5deg)}
+.card p{font-size:21px; line-height:1.3; margin:0 0 14px; text-align:justify; hyphens:auto; -webkit-hyphens:auto}
+.card p.hint{font-size:18px; opacity:.75; margin:16px 0 0}
+.levels{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 20px}
+.lv{font-size:19px; line-height:1.1; text-align:left; padding:6px 11px 7px; border:2px solid var(--ink);
+  border-radius:14px 225px 14px 255px/255px 14px 225px 14px}
+.lv small{display:block; font-size:15px; opacity:.7; margin-top:2px}
+.lv:last-child:nth-child(odd){grid-column:1/-1}   /* lichá poslední úroveň přes celou šířku, ne sama v půlce řádku */
+.lv[aria-pressed="true"]{background:var(--hl); color:var(--hl-ink); border-color:var(--hl-ink)}
+.lv:active{transform:translateY(1px)}
+.row{display:flex; gap:10px; flex-wrap:wrap}
+.btn{font-size:23px; padding:7px 22px 9px; background:var(--hl); color:var(--hl-ink); border:2px solid var(--hl-ink);
+  border-radius:255px 14px 225px 14px/14px 225px 14px 255px}
+.btn.ghost{background:transparent; color:var(--ink); border-color:var(--ink)}
+.btn:active{transform:translateY(1px)}
+.btn.small{font-size:19px; padding:4px 16px 6px}
+.row:has(>[hidden]:only-child){display:none}
+/* instalace jako samostatný oddíl, licence písma jako drobná patička karty */
+.install{margin-top:18px; padding-top:24px; border-top:2px dashed color-mix(in srgb, var(--ink) 35%, transparent)}
+.install p{font-size:17px; line-height:1.3; margin:0; opacity:.85}
+.install .btn{margin-bottom:6px}
+.card p#installAndroid{text-align:center}
+.install[hidden],.install p[hidden]{display:none}
+.credit{margin:18px -10px -10px; padding-top:8px; border-top:1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  font-size:12px; line-height:1.3; text-align:center; opacity:.55}
+.credit a{color:inherit}
+@media (prefers-reduced-motion:reduce){ .prog i,#toast{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="cv" role="img" aria-label="Kreslený obrázek města, ve kterém se schovávají kočky"></canvas>
+
+<header class="bar sk">
+  <div class="count"><span id="found">0</span> / <span id="total">20</span> <small>koček</small></div>
+  <div class="prog" aria-hidden="true"><i id="pf"></i></div>
+  <span id="time">0:00</span>
+  <button class="ib" id="hintBtn" aria-label="Nápověda" title="Nápověda">
+    <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
+  </button>
+  <button class="ib" id="lvBtn" aria-label="Úrovně" title="Úrovně">
+    <svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/></svg>
+  </button>
+  <button class="ib" id="newBtn" aria-label="Nový obrázek" title="Nový obrázek">
+    <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+  </button>
+</header>
+
+<div class="zoom">
+  <button class="ib" id="zin" aria-label="Přiblížit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="ib" id="zout" aria-label="Oddálit"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+  <button class="ib" id="zfit" aria-label="Zobrazit celý obrázek"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+
+<div id="toast" role="status"></div>
+
+<div class="modal" id="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle">
+  <div class="card sk">
+    <svg class="peek" viewBox="0 0 100 70" aria-hidden="true">
+      <path d="M18 44 L22 6 L44 26 Z" fill="var(--paper)"/><path d="M82 44 L78 6 L56 26 Z" fill="var(--paper)"/>
+      <ellipse cx="50" cy="50" rx="36" ry="30" fill="var(--paper)"/>
+      <ellipse cx="37" cy="46" rx="4" ry="6" fill="var(--ink)" stroke="none"/><ellipse cx="63" cy="46" rx="4" ry="6" fill="var(--ink)" stroke="none"/>
+      <path d="M46 56h8l-4 5z" fill="var(--ink)"/><path d="M10 52l18 2M10 60l18-2M90 52l-18 2M90 60l-18-2" fill="none"/>
+    </svg>
+    <h1 id="introTitle">Najdi kočku</h1>
+    <p id="introText">V každém obrázku se schovává 20 koček a koťat. Vyber si, kde chceš hledat.</p>
+    <div class="levels" id="levels" role="group" aria-label="Úrovně"></div>
+    <div class="row"><button class="btn ghost small" id="introNew" hidden>Nový obrázek</button></div>
+    <div class="install" id="installBox" hidden>
+      <p id="installAndroid" hidden><button class="btn ghost small" id="installBtn">Nainstalovat jako aplikaci</button><br>Hra pak funguje i bez internetu.</p>
+      <p id="installIos" hidden>Na plochu si hru přidáš přes Sdílet → Přidat na plochu. Pak funguje i bez internetu.</p>
+    </div>
+    <p class="hint">Přibližuj prsty nebo kolečkem myši, posouvej tažením. Jakmile kočku uvidíš, ťukni na ni.</p>
+    <footer class="credit">Písmo Patrick Hand © Patrick Wagesreiter, <a href="fonts/OFL.txt" target="_blank" rel="noopener">licence SIL OFL 1.1</a></footer>
+  </div>
+</div>
+
+<div class="modal" id="done" hidden role="dialog" aria-modal="true" aria-labelledby="doneTitle">
+  <div class="card sk">
+    <h1 id="doneTitle">Všechny nalezeny!</h1>
+    <p id="doneText"></p>
+    <div class="row">
+      <button class="btn" id="nextBtn">Další úroveň</button>
+      <button class="btn ghost" id="againBtn">Nový obrázek</button>
+      <button class="btn ghost" id="lookBtn">Prohlédnout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Registr prostředí: každý soubor v scenes/ zavolá SCENE({id, name, where, caps, build}).
+const SCENES={};function SCENE(s){SCENES[s.id]=s}
+</script>
+<script src="scenes/mesto.js"></script>
+<script src="scenes/louka.js"></script>
+<script src="scenes/knihovna.js"></script>
+<script src="scenes/muzeum.js"></script>
+<script src="scenes/kavarna.js"></script>
+<script src="scenes/plaz.js"></script>
+<script src="scenes/hradcany.js"></script>
+<script>
+"use strict";
+const W=3000, H=2000, GY=1250, MAXS=3.2, NCATS=20, KEY='najdi-kocku-v2', OLDKEY='najdi-kocku-v1';
+
+// Stabilní pseudonáhodné číslo 0–1 z indexu prvku (pro variace tahu; nezasahuje do R).
+function hash01(i){let x=Math.imul(i^0x9e3779b9,0x85ebca6b);x^=x>>>13;x=Math.imul(x,0xc2b2ae35);x^=x>>>16;return(x>>>0)/4294967296}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ---------- hand-drawn path builder ---------- */
+class Sh{
+  constructor(r){this.p=new Path2D();this.r=r;this.x0=this.y0=1e9;this.x1=this.y1=-1e9}
+  bb(x,y){if(x<this.x0)this.x0=x;if(x>this.x1)this.x1=x;if(y<this.y0)this.y0=y;if(y>this.y1)this.y1=y}
+  j(a){return(this.r()-.5)*2*a}
+  curve(pts,closed){
+    const p=this.p,n=pts.length;for(const q of pts)this.bb(q[0],q[1]);if(n<2)return;
+    if(closed){const a=pts[n-1],b=pts[0];p.moveTo((a[0]+b[0])/2,(a[1]+b[1])/2);
+      for(let i=0;i<n;i++){const c=pts[i],e=pts[(i+1)%n];p.quadraticCurveTo(c[0],c[1],(c[0]+e[0])/2,(c[1]+e[1])/2)}p.closePath()}
+    else{p.moveTo(pts[0][0],pts[0][1]);if(n===2){p.lineTo(pts[1][0],pts[1][1]);return}
+      for(let i=1;i<n-1;i++){const c=pts[i],e=pts[i+1],last=i===n-2;
+        p.quadraticCurveTo(c[0],c[1],last?e[0]:(c[0]+e[0])/2,last?e[1]:(c[1]+e[1])/2)}}
+  }
+  seg(x1,y1,x2,y2,j){const d=Math.hypot(x2-x1,y2-y1)||1,n=Math.max(1,Math.round(d/28)),nx=-(y2-y1)/d,ny=(x2-x1)/d,o=[];
+    for(let i=0;i<n;i++){const t=i/n,k=i===0?this.j(j*.4):this.j(j);o.push([x1+(x2-x1)*t+nx*k,y1+(y2-y1)*t+ny*k])}return o}
+  line(x1,y1,x2,y2,j=1){const o=this.seg(x1,y1,x2,y2,j);o.push([x2+this.j(j*.4),y2+this.j(j*.4)]);this.curve(o,false)}
+  poly(pts,closed=true,j=1){const p=this.p,n=pts.length,m=closed?n:n-1;let first=true;
+    for(let i=0;i<m;i++){const a=pts[i],b=pts[(i+1)%n];for(const q of this.seg(a[0],a[1],b[0],b[1],j)){this.bb(q[0],q[1]);
+      if(first){p.moveTo(q[0],q[1]);first=false}else p.lineTo(q[0],q[1])}}
+    if(closed)p.closePath();else{const l=pts[n-1];this.bb(l[0],l[1]);p.lineTo(l[0],l[1])}}
+  rect(x,y,w,h,j=1){this.poly([[x,y],[x+w,y],[x+w,y+h],[x,y+h]],true,j);
+    // přetažené rohy jako na skice (samostatná cesta, kreslí se jen v kresebném stylu; nevolá RNG)
+    const o=Math.min(8,Math.min(Math.abs(w),Math.abs(h))*.14);if(o<2)return;
+    const p=this.o||(this.o=new Path2D()),a=o*.55;
+    p.moveTo(x-o,y);p.lineTo(x,y);p.moveTo(x+w,y);p.lineTo(x+w+a,y);p.moveTo(x-a,y+h);p.lineTo(x,y+h);p.moveTo(x+w,y+h);p.lineTo(x+w+o,y+h);
+    p.moveTo(x,y-a);p.lineTo(x,y);p.moveTo(x+w,y-o);p.lineTo(x+w,y);p.moveTo(x,y+h);p.lineTo(x,y+h+o);p.moveTo(x+w,y+h);p.lineTo(x+w,y+h+a)}
+  ell(cx,cy,rx,ry,jf=.05,rot=0){const n=Math.min(36,Math.max(9,Math.round((rx+ry)*.3))),o=[],a0=this.r()*6.283,c=Math.cos(rot),s=Math.sin(rot);
+    for(let i=0;i<n;i++){const a=a0+i/n*6.283,k=1+this.j(jf),px=Math.cos(a)*rx*k,py=Math.sin(a)*ry*k;o.push([cx+px*c-py*s,cy+px*s+py*c])}
+    this.curve(o,true)}
+}
+
+/* ---------- scene ---------- */
+function buildScene(lv,seed,sel){
+  const R=mulberry32(seed), RC=mulberry32((seed*7919+13)>>>0);
+  const L=[],cats=[],spots=[];
+  const rr=(a,b)=>a+R()*(b-a);
+  let cur=-1;
+  const add=(f,lw,fn,st='ink',rng=R,role=null)=>{const s=new Sh(rng);fn(s);const m=lw+(s.o?10:3);
+    const e={p:s.p,f,lw,st,b:[s.x0-m,s.y0-m,s.x1+m,s.y1+m],h:hash01(L.length)};if(s.o)e.o=s.o;if(role){e.c=cur;e.r=role}L.push(e)};
+  const cadd=(f,lw,fn,st='ink',role='x')=>add(f,lw,fn,st,RC,role);
+  const spot=(kind,x,y,draw)=>{const i=spots.length;spots.push({kind,x,y});if(sel&&sel.has(i)){cur=cats.length;draw(sel.get(i));cur=-1}};
+  const S=(o,b)=>b*(o.kitten?.64:1)*o.k;
+  const reg=(o,x,y,r)=>cats.push({x,y,r,kitten:o.kitten,dark:o.dark});
+
+  /* cats — only RC randomness inside */
+  // Černá kočka je vyšrafovaná perem ('shade') jako stíny ve scéně – plná inkoustová výplň byla nápadnější
+  // než obrysové kočky. Oči, nos a čáry má inkoustem jako ostatní; po nalezení se vybarví do černé (DARKPAL).
+  // Nejmenší velikost kočky (MIN_S): menší kočky nešly poznat ani trefit.
+  const MIN_S=22;
+  function head(cx,cy,r,o){
+    const f=o.dark?'shade':'paper',d='ink',lw=Math.max(1.5,r*.075),h0=L.length;
+    for(const sd of[-1,1])cadd(f,lw,q=>q.poly([[cx+sd*r*.92,cy-r*.12],[cx+sd*r*.8,cy-r*1.3],[cx+sd*r*.16,cy-r*.74]],true,.4),'ink','body');
+    cadd(f,lw,q=>q.ell(cx,cy,r,r*.86,.035),'ink','body');
+    cadd('none',lw*.7,q=>{for(const sd of[-1,1])q.curve([[cx+sd*r*.74,cy-r*.5],[cx+sd*r*.76,cy-r*1.02],[cx+sd*r*.44,cy-r*.72]],false)},'ink','ear');
+    const ex=r*.38,ey=cy-r*.08,ox=o.dir*r*.07,x=cx+ox;
+    if(o.sleep)cadd('none',lw*.85,q=>{for(const sd of[-1,1])q.curve([[x+sd*ex-r*.15,ey],[x+sd*ex,ey+r*.1],[x+sd*ex+r*.15,ey]],false)},d,'detail');
+    else for(const sd of[-1,1]){
+      cadd(d,0,q=>q.ell(x+sd*ex,ey,r*(o.kitten?.15:.12),r*(o.kitten?.21:.17),.05),'ink','eye');
+      cadd('paper',0,q=>q.ell(x+sd*ex-r*.035,ey-r*.07,r*.045,r*.045,.05),'ink','hl');
+    }
+    cadd(d,0,q=>q.poly([[x-r*.09,cy+r*.13],[x+r*.09,cy+r*.13],[x,cy+r*.24]],true,.2),'ink','nose');
+    cadd('none',lw*.7,q=>{q.curve([[x-r*.17,cy+r*.33],[x-r*.07,cy+r*.38],[x,cy+r*.25]],false);q.curve([[x,cy+r*.25],[x+r*.07,cy+r*.38],[x+r*.17,cy+r*.33]],false)},d,'detail');
+    cadd('none',lw*.5,q=>{for(const sd of[-1,1])for(const k of[-1,0,1])q.line(x+sd*r*.34,cy+r*.24+k*r*.06,x+sd*r*1.28,cy+r*.18+k*r*.22,.3)});
+    if(o.stripes&&!o.dark)cadd('none',lw*.8,q=>{for(const k of[-1,0,1])q.line(cx+k*r*.17,cy-r*.8,cx+k*r*.13,cy-r*.56,.3)},'ink','stripe');
+    // prvky hlavy se označí – podle hlavy hráč kočku pozná, její viditelnost se měří zvlášť
+    for(let k=h0;k<L.length;k++)L[k].hd=1;
+  }
+  function tail(pts,w,o){cadd('none',w,q=>q.curve(pts,false));cadd('none',Math.max(.8,w-Math.max(2.6,w*.42)),q=>q.curve(pts,false),o.dark?'shade':'paper','body')}
+  function sitCat(x,y,s,o){s=Math.max(s,MIN_S);
+    const d=o.dir,f=o.dark?'shade':'paper',lc='ink',lw=Math.max(1.6,s*.035);
+    tail([[x-d*s*.22,y-s*.08],[x-d*s*.62,y-s*.1],[x-d*s*.78,y-s*.42],[x-d*s*.6,y-s*.72]],s*.13,o);
+    cadd(f,lw,q=>q.ell(x,y-s*.52,s*.38,s*.52,.035),'ink','body');
+    if(o.stripes&&!o.dark)cadd('none',lw*.8,q=>{for(let k=0;k<3;k++){const yy=y-s*(.34+k*.16);q.curve([[x-d*s*.37,yy],[x-d*s*.24,yy+s*.04],[x-d*s*.13,yy-s*.02]],false)}},'ink','stripe');
+    cadd('none',lw*.8,q=>{q.line(x+d*s*.04-s*.08,y-s*.42,x+d*s*.04-s*.1,y-s*.05,.4);q.line(x+d*s*.04+s*.08,y-s*.42,x+d*s*.04+s*.1,y-s*.05,.4)},lc,'detail');
+    for(const sd of[-1,1])cadd(f,lw*.8,q=>q.ell(x+d*s*.04+sd*s*.12,y-s*.045,s*.1,s*.055,.05),'ink','body');
+    head(x+d*s*.08,y-s*1.06,s*.38,o);
+    reg(o,x,y-s*.78,s*.85);
+  }
+  function loafCat(x,y,s,o){s=Math.max(s,MIN_S);
+    const d=o.dir,f=o.dark?'shade':'paper',lw=Math.max(1.6,s*.035);
+    cadd(f,lw,q=>q.ell(x,y-s*.32,s*.68,s*.32,.035),'ink','body');
+    if(o.stripes&&!o.dark)cadd('none',lw*.8,q=>{for(let k=0;k<3;k++){const xx=x-d*s*(.4-k*.2);q.curve([[xx,y-s*.62],[xx-d*s*.04,y-s*.5],[xx,y-s*.42]],false)}},'ink','stripe');
+    for(const t of[.36,.58])cadd(f,lw*.8,q=>q.ell(x+d*s*t,y-s*.04,s*.09,s*.05,.05),'ink','body');
+    head(x+d*s*.5,y-s*.58,s*.33,o);
+    tail([[x-d*s*.62,y-s*.22],[x-d*s*.5,y-s*.04],[x-d*s*.1,y-s*.02],[x+d*s*.15,y-s*.06]],s*.11,o);
+    reg(o,x+d*s*.1,y-s*.45,s*.8);
+  }
+  function sleepCat(x,y,s,o){s=Math.max(s,MIN_S);
+    const d=o.dir,f=o.dark?'shade':'paper',lw=Math.max(1.6,s*.035);
+    cadd(f,lw,q=>q.ell(x,y-s*.33,s*.6,s*.34,.035),'ink','body');
+    head(x+d*s*.32,y-s*.34,s*.28,Object.assign({},o,{sleep:true}));
+    tail([[x-d*s*.55,y-s*.16],[x-d*s*.35,y-s*.02],[x+d*s*.1,y-s*.03],[x+d*s*.45,y-s*.1]],s*.12,o);
+    reg(o,x,y-s*.4,s*.72);
+  }
+  function peekCat(x,y,s,o){s=Math.max(s,MIN_S);const r=s*.4;head(x,y-r*.85,r,o);reg(o,x,y-r*1.05,r*1.3)}
+
+  /* sky */
+  function sky(){
+    add('paper',2.2,q=>q.ell(2790,190,58,58,.03));
+    add('none',1.8,q=>{for(let i=0;i<12;i++){const a=i/12*6.283+.1;q.line(2790+Math.cos(a)*76,190+Math.sin(a)*76,2790+Math.cos(a)*(100+(i%2)*18),190+Math.sin(a)*(100+(i%2)*18),.8)}});
+    for(let i=0;i<7;i++){const cx=rr(80,W-250),cy=rr(90,430),sc=rr(.7,1.35);
+      const parts=[[-60,10,48,30],[60,8,52,32],[0,0,72,40],[-25,-24,44,34],[30,-22,40,30]];
+      for(const p of parts)add('paper',2,q=>q.ell(cx+p[0]*sc,cy+p[1]*sc,p[2]*sc,p[3]*sc,.05))}
+    add('none',1.7,q=>{for(let i=0;i<14;i++){const x=rr(100,W-100),y=rr(80,560),s=rr(.7,1.3);
+      q.curve([[x-13*s,y-4*s],[x-6*s,y-3*s],[x,y+3*s]],false);q.curve([[x,y+3*s],[x+6*s,y-3*s],[x+14*s,y-5*s]],false)}});
+  }
+  function hill(yb,amp){const pts=[];for(let x=-60;x<=W+60;x+=110)pts.push([x,yb+Math.sin(x/280+R()*.8)*amp+rr(-10,10)]);
+    // výplň sahá až k linii GY – i ta musí být v ohraničení, jinak ji dlaždice pod hřebenem vynechají
+    add('paper',2,q=>{q.curve(pts,false);q.p.lineTo(W+60,GY);q.p.lineTo(-60,GY);q.p.closePath();q.bb(W+60,GY);q.bb(-60,GY)});return pts}
+
+  const pick=a=>a[Math.floor(R()*a.length)];
+  const arch=(cx,yt,r,yb)=>{const p=[[cx-r,yb]];for(let i=0;i<=12;i++){const a=Math.PI+i/12*Math.PI;p.push([cx+Math.cos(a)*r,yt+r+Math.sin(a)*r])}p.push([cx+r,yb]);return p};
+  const place=objs=>{objs.sort((a,b)=>a.y-b.y);for(const o of objs)o.f(o.x,o.y)};
+  // Kočka vykukuje zpoza vodorovné hrany `edge`: brada je pod hranou o `d`·velikost kočky, takže kotě
+  // ukáže obličej stejně jako dospělá kočka (pevná hloubka v jednotkách kotěti schová obličej).
+  const peek=(x,edge,s,o,d=.18)=>peekCat(x,edge+s*d,s,o);
+  // Rozmístění předmětů na zemi bez nesmyslných překryvů (osvědčené v muzeu, na pláži a louce).
+  // Předmět = stopa na zemi (x, y = pata, šířka w) a výška h. Odmítne se, když:
+  //  - stojí ve stejné hloubce (|Δy| < depth) a stopy se překrývají,
+  //  - předmět vpředu by zakryl víc než `cover` výšky předmětu za sebou,
+  //  - předmět stojí před chráněnou zónou (protect) a jeho obrys do ní zasahuje – typicky místo kočky u zdi.
+  // put(f,x,y,w,h) → true/false, tryPut(f,w,h,y0,y1[,x0,x1]) → {x,y}|null, block(x,y,w,h) zabere místo bez kreslení,
+  // protect(x0,x1,y0,y1,base) chráněná zóna věcí stojících v hloubce `base`, place() vše vykreslí seřazené podle y.
+  function layout({gap=16,depth=60,cover=.3,tries=16}={}){
+    const items=[],zones=[],objs=[];
+    const hit=(x,y,w,h)=>{
+      for(const t of items){if(Math.abs(t.x-x)>=(t.w+w)/2+gap)continue;const dy=y-t.y;if(dy<depth&&dy>-depth)return true;
+        const f=dy>0?{y,h}:t,b=dy>0?t:{y,h},top=Math.max(f.y-f.h,b.y-b.h);if(b.h>0&&(b.y-top)/b.h>cover)return true}
+      for(const z of zones)if(y>z.base&&x+w/2>z.x0&&x-w/2<z.x1&&y-h<z.y1&&y>z.y0)return true;
+      return false};
+    const block=(x,y,w,h=0)=>{items.push({x,y,w,h})};
+    const put=(f,x,y,w,h=0)=>{if(hit(x,y,w,h))return false;block(x,y,w,h);objs.push({f,x,y});return true};
+    const tryPut=(f,w,h,y0,y1,x0=w/2+40,x1=W-w/2-40)=>{for(let i=0;i<tries;i++){const x=rr(x0,x1),y=rr(y0,y1);if(put(f,x,y,w,h))return{x,y}}return null};
+    const protect=(x0,x1,y0,y1,base)=>{zones.push({x0,x1,y0,y1,base})};
+    return{put,tryPut,block,protect,place:()=>place(objs),items,objs}}
+  function grass(y0,y1,n){add('none',1,q=>{for(let i=0;i<n;i++){const x=R()*W,y=rr(y0,y1),h=rr(5,12);
+    q.line(x,y,x-3,y-h,.3);q.line(x,y,x+1,y-h*1.2,.3);q.line(x,y,x+4,y-h,.3)}})}
+  function planks(y0,step){add('shade',0,q=>q.rect(-10,y0,W+20,H-y0+10,0));
+    add('none',1,q=>{for(let y=y0+step;y<H;y+=step){q.line(-10,y,W+10,y,.8);for(let x=rr(0,200);x<W;x+=rr(180,340))q.line(x,y-step,x,y,.3)}})}
+  // posed / plavčická věž: kočka vykukuje z okénka
+  function stand(x,base,kind){const lh=rr(230,280),cw=110,ch=90,top=base-lh-ch;
+    add('none',3,q=>{q.line(x-cw/2+8,top+ch,x-cw/2-18,base,.6);q.line(x+cw/2-8,top+ch,x+cw/2+18,base,.6);q.line(x-cw/2-6,base-90,x+cw/2+6,base-90,.5);q.line(x-cw/2,top+ch+10,x+cw/2+10,base-90,.5)});
+    add('none',2,q=>{q.line(x-18,base,x-12,top+ch,.5);q.line(x+18,base,x+12,top+ch,.5);for(let y=base-26;y>top+ch+10;y-=30)q.line(x-17,y,x+17,y,.3)});
+    add('paper',2.2,q=>q.rect(x-cw/2,top,cw,ch));
+    add('shade',1.6,q=>q.rect(x-cw/2+14,top+14,cw-28,36,.4));
+    spot(kind,x,top+50,o=>peekCat(x+o.dir*10,top+52,S(o,48),o));
+    add('paper',2,q=>q.rect(x-cw/2,top+50,cw,ch-50,.5));
+    add('paper',2.2,q=>q.poly([[x-cw/2-16,top+4],[x,top-38],[x+cw/2+16,top+4]]));
+    if(kind==='tower'){add('none',1.6,q=>q.line(x,top-38,x,top-90,.2));add('paper',1.4,q=>q.poly([[x,top-90],[x+36,top-80],[x,top-70]]))}
+  }
+  // Trs vysoké trávy; stébla nechávají mezeru pro hlavu kočky (nad hlavou nevede žádné vysoké stéblo).
+  function tallgrass(x,y,kind='grass'){const w=rr(70,120),top=y-rr(46,58);
+    spot(kind,x,top,o=>peek(x+o.dir*5,top,S(o,48),o));
+    add('none',1.5,q=>{const n=Math.round(w/5);for(let i=0;i<n;i++){const bx=x+rr(-.5,.5)*w,lean=rr(-18,18),mid=Math.abs(bx+lean-x)<24;
+      const hh=mid?rr(18,y-top-6):rr(40,85);q.curve([[bx,y],[bx+lean*.3,y-hh*.55],[bx+lean,y-hh]],false)}});
+  }
+
+  /* sdílené objekty (město i další prostředí) */
+  function tree(cx,base,sc){
+    const th=rr(190,260)*sc,fy=base-th-rr(40,80)*sc;
+    add('paper',2.2,q=>q.poly([[cx-15*sc,base],[cx-9*sc,base-th],[cx+9*sc,base-th],[cx+15*sc,base]]));
+    add('none',1,q=>{for(let i=0;i<4;i++){const y=base-rr(20,th-20);q.line(cx+rr(-6,6)*sc,y,cx+rr(-6,6)*sc,y-rr(12,25),.4)}});
+    add('none',2,q=>{q.line(cx,base-th*.62,cx-48*sc,base-th*.86,.6);q.line(cx,base-th*.7,cx+44*sc,base-th*.95,.6)});
+    const bl=[];for(let i=0;i<7;i++)bl.push([cx+rr(-95,95)*sc,fy+rr(-60,50)*sc,rr(55,80)*sc]);
+    bl.sort((a,b)=>a[1]-b[1]);for(const b of bl)add('paper',2,q=>q.ell(b[0],b[1],b[2],b[2]*.85,.08));
+    add('none',1,q=>{const n=Math.round(38*sc*sc);for(let i=0;i<n;i++){const a=R()*6.283,d=Math.sqrt(R())*105*sc,x=cx+Math.cos(a)*d*1.1,y=fy+Math.sin(a)*d*.8;q.curve([[x-6,y],[x,y-5],[x+6,y]],false)}});
+    if(R()<.35)add('paper',1.3,q=>{for(let i=0;i<6;i++){const a=R()*6.283,d=R()*90*sc;q.ell(cx+Math.cos(a)*d,fy+Math.sin(a)*d*.7,6,6,.1)}});
+    const a=R()*6.283,d=R()*55*sc,tx=cx+Math.cos(a)*d,ty=fy+Math.sin(a)*d*.7;
+    spot('tree',tx,ty,o=>{const r=S(o,50)*.4;head(tx,ty,r,o);reg(o,tx,ty-r*.3,r*1.3)});
+  }
+  function bush(x,y){const w=rr(110,190),h=w*rr(.45,.6),bx=x+rr(-.25,.25)*w;
+    const bl=[];for(let i=0;i<5;i++)bl.push([x-w/2+(i+.5)*w/5+rr(-10,10),y-h*rr(.35,.6),w*rr(.2,.28)]);
+    // horní okraj keře v místě px (nejvyšší kulička nad ním)
+    const topAt=px=>{let t=y-h*.55;for(const b of bl){const dx=(px-b[0])/b[2];if(Math.abs(dx)<1)t=Math.min(t,b[1]-b[2]*1.1*Math.sqrt(1-dx*dx))}return t};
+    // hlava musí vykukovat nad keř, jinak ji kuličky zakryjí celou
+    spot('bush',bx,y-h*.7,o=>{const s=S(o,56),r=s*.4;let t=Infinity;for(let k=-3;k<=3;k++)t=Math.min(t,topAt(bx+k*r*.18));
+      peekCat(bx,t+r*.8,s,o)});
+    for(const b of bl)add('paper',2,q=>q.ell(b[0],b[1],b[2],b[2]*1.1,.08));
+    add('paper',2,q=>q.ell(x,y-h*.25,w*.52,h*.3,.05));
+    add('none',1,q=>{for(let i=0;i<w/9;i++){const px=x+rr(-.42,.42)*w,py=y-rr(.1,.8)*h;q.curve([[px-5,py],[px,py-4],[px+5,py]],false)}});
+    if(R()<.3)add('ink',0,q=>{for(let i=0;i<7;i++)q.ell(x+rr(-.4,.4)*w,y-rr(.2,.7)*h,3,3,.1)});
+  }
+  // Záhon: kočka sedí mezi květy; květy před jejím obličejem jsou nízké, vysoké jen po stranách.
+  function flowers(x,y){
+    spot('flowers',x,y,o=>sitCat(x,y,S(o,50),o));
+    const n=Math.round(rr(6,10));
+    for(let i=0;i<n;i++){const fx=x+rr(-75,75),fy=y+rr(-6,12),low=Math.abs(fx-x)<62,sh=low?rr(5,11):rr(35,85),hx2=low?fx:fx+(fx>x?1:-1)*rr(0,10),hy=fy-sh,pr=rr(6,9);
+      add('none',1.4,q=>q.curve([[fx,fy],[fx+(hx2-fx)*.3+rr(-5,5),fy-sh*.5],[hx2,hy]],false));
+      add('paper',1.2,q=>q.ell(fx+rr(-2,2)+8,fy-sh*.35,10,4,.1,-.5));
+      add('paper',1.3,q=>{for(let k=0;k<5;k++){const a=k/5*6.283;q.ell(hx2+Math.cos(a)*pr,hy+Math.sin(a)*pr,pr*.75,pr*.75,.1)}});
+      add('ink',0,q=>q.ell(hx2,hy,pr*.45,pr*.45,.1));
+    }
+  }
+  function box(x,y){const bw=rr(80,112),bh=bw*.7;
+    add('paper',2,q=>q.poly([[x-bw/2,y-bh],[x-bw/2+10,y-bh-24],[x+bw/2+10,y-bh-24],[x+bw/2,y-bh]]));
+    spot('box',x,y-bh,o=>peekCat(x+o.dir*8,y-bh+4,S(o,50),o));
+    add('paper',2.2,q=>q.rect(x-bw/2,y-bh,bw,bh));
+    add('paper',2,q=>{q.poly([[x-bw/2,y-bh],[x-bw/2-22,y-bh-14],[x-bw/2-12,y-bh+14]]);q.poly([[x+bw/2,y-bh],[x+bw/2+20,y-bh-18],[x+bw/2+14,y-bh+12]])});
+    add('none',1.1,q=>{q.line(x-8,y-bh,x-8,y-bh+22,.3);q.line(x+8,y-bh,x+8,y-bh+22,.3);q.line(x-bw*.3,y-bh*.4,x+bw*.1,y-bh*.4,.3)});
+  }
+  function bench(x,y){const bw=rr(160,210);
+    add('none',2.4,q=>{q.line(x-bw/2+14,y-100,x-bw/2+14,y-46,.4);q.line(x+bw/2-14,y-100,x+bw/2-14,y-46,.4)});
+    add('paper',2,q=>{q.rect(x-bw/2,y-98,bw,14,.6);q.rect(x-bw/2,y-76,bw,14,.6)});
+    add('none',2.4,q=>{q.line(x-bw/2+14,y-42,x-bw/2+10,y,.4);q.line(x+bw/2-14,y-42,x+bw/2-10,y,.4)});
+    add('paper',2.2,q=>q.rect(x-bw/2-6,y-48,bw+12,12,.6));
+    const sx=x+rr(-.2,.2)*bw;
+    spot('bench',sx,y-48,o=>sleepCat(sx,y-47,S(o,56),o));
+  }
+  // Květináč: listy za kočkou míří kamkoli, listy před ní jen do stran, aby nezakryly obličej.
+  function pot(x,y){const pw=rr(50,75),ph=pw*.8;
+    const leaf=front=>{const len=rr(40,70);
+      if(front){const sd=R()<.5?-1:1,a=rr(.1,.4),cx=x+sd*(pw*.5+Math.cos(a)*len*.5);   // od okraje květináče skoro vodorovně ven
+        add('paper',1.5,q=>q.ell(cx,y-ph-Math.sin(a)*len*.5,len*.5,8,.06,sd>0?-a:a));return}
+      const a=rr(.5,2.64);add('paper',1.5,q=>q.ell(x+Math.cos(a)*len*.5,y-ph-Math.sin(a)*len*.5,len*.5,8,.06,-a))};
+    for(let i=0;i<3;i++)leaf(false);
+    spot('pot',x,y-ph,o=>peek(x,y-ph,S(o,46),o));
+    for(let i=0;i<3;i++)leaf(true);
+    add('paper',2.2,q=>q.poly([[x-pw/2,y-ph],[x+pw/2,y-ph],[x+pw*.38,y],[x-pw*.38,y]]));
+    add('paper',2,q=>q.rect(x-pw/2-5,y-ph-2,pw+10,13,.5));
+  }
+  // Kámen: kočka sedí za ním tak vysoko, aby hlava byla vždy nad kamenem (i kotě za velkým kamenem).
+  function stone(x,y){const sw=rr(70,125),sh=sw*rr(.4,.6);
+    spot('stone',x,y-sh*.5,o=>{const s=S(o,54);sitCat(x+o.dir*10,Math.min(y-sh*.35,y-sh+s*.87),s,o)});
+    add('paper',2.2,q=>q.ell(x,y-sh/2,sw/2,sh/2,.12));
+    add('none',1,q=>{q.curve([[x-sw*.2,y-sh*.6],[x-sw*.05,y-sh*.7],[x+sw*.1,y-sh*.55]],false);q.line(x+sw*.2,y-sh*.3,x+sw*.28,y-sh*.2,.3)});
+  }
+  function bucket(x,y){const bw=rr(45,60),bh=bw;
+    add('none',1.8,q=>q.curve([[x-bw/2,y-bh],[x,y-bh-bw*.7],[x+bw/2,y-bh]],false));
+    spot('bucket',x,y-bh,o=>peekCat(x,y-bh+3,S(o,46),o));
+    add('paper',2.2,q=>q.poly([[x-bw/2,y-bh],[x+bw/2,y-bh],[x+bw*.38,y],[x-bw*.38,y]]));
+    add('paper',1.8,q=>q.ell(x,y-bh,bw/2,6,.05));
+  }
+  function yarn(x,y){const r=rr(13,18);
+    add('none',1.4,q=>q.curve([[x+r,y-r*.5],[x+r*2.5,y-2],[x+r*3.5,y-r*.4],[x+r*5,y]],false));
+    add('paper',2,q=>q.ell(x,y-r,r,r,.05));
+    add('none',1,q=>{q.curve([[x-r*.8,y-r*1.4],[x,y-r*.9],[x+r*.7,y-r*.3]],false);q.curve([[x-r*.9,y-r*.8],[x-r*.1,y-r*.4],[x+r*.4,y-r*.05]],false);q.curve([[x-r*.3,y-r*1.9],[x+r*.3,y-r*1.4],[x+r*.9,y-r*.9]],false)});
+  }
+  function shrooms(x,y){for(let i=0;i<3;i++){const mx=x+i*22-22,mh=rr(18,34),mr=rr(12,20);
+    add('paper',1.6,q=>q.rect(mx-4,y-mh,8,mh,.3));
+    add('paper',1.8,q=>q.poly([[mx-mr,y-mh],[mx-mr*.6,y-mh-mr*.7],[mx+mr*.6,y-mh-mr*.7],[mx+mr,y-mh]],true,.4));
+    add('ink',0,q=>{q.ell(mx-mr*.35,y-mh-mr*.35,2.5,2.5,.1);q.ell(mx+mr*.3,y-mh-mr*.45,2,2,.1)})}}
+
+  SCENES[lv].build({R,rr,add,spot,S,reg,head,sitCat,loafCat,sleepCat,peekCat,peek,layout,pick,arch,place,grass,planks,stand,tallgrass,sky,hill,tree,bush,flowers,box,bench,pot,stone,bucket,yarn,shrooms});
+  add('none',3,q=>q.rect(8,8,W-16,H-16,2));
+  return{L,cats,spots};
+}
+
+// Pořadí úrovní; každá je v scenes/<id>.js (název, text, limity úkrytů a build).
+const LEVELS=['mesto','louka','knihovna','muzeum','kavarna','plaz','hradcany'].map(id=>SCENES[id]);
+const LV=Object.fromEntries(LEVELS.map(l=>[l.id,l]));
+
+// bad: úkryty, které se v tomto obrázku ukázaly jako špatně viditelné (viz newScene) – přeskočí se
+function chooseCats(spots,seed,lv,bad=null){
+  const R=mulberry32((seed*31+7)>>>0);
+  const cap=SCENES[lv].caps;
+  const idx=spots.map((_,i)=>i);
+  for(let i=idx.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}
+  const ch=[],cnt={},far=i=>ch.every(j=>Math.hypot(spots[j].x-spots[i].x,spots[j].y-spots[i].y)>130);
+  // úkryt u okraje světa (nebo za ním) kočku nedostane – byla by mimo papír a nešla by najít
+  const inside=i=>{const p=spots[i];return p.x>=40&&p.x<=W-40&&p.y>=40&&p.y<=H-40&&!(bad&&bad.has(i))};
+  for(const i of idx){if(ch.length>=NCATS)break;const k=spots[i].kind;if((cnt[k]||0)>=(cap[k]||1)||!far(i)||!inside(i))continue;ch.push(i);cnt[k]=(cnt[k]||0)+1}
+  for(const i of idx){if(ch.length>=NCATS)break;if(!ch.includes(i)&&far(i)&&inside(i))ch.push(i)}
+  const m=new Map();
+  for(const i of ch)m.set(i,{kitten:R()<.35,dark:R()<.12,stripes:R()<.35,dir:R()<.5?-1:1,k:.9+R()*.2,alt:R()<.5});
+  return m;
+}
+
+/* ---------- app ---------- */
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+let DL=[],CATS=[],lv='mesto',seed=0,found=new Map(),hints=0,elapsed=0,done=false;
+let vw=0,vh=0,dpr=0,cam={x:0,y:0,s:.3},col={};
+let raf=0,tween=null,hint=null,ripples=[],rings=[];
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+function readColors(){const cs=getComputedStyle(document.documentElement);
+  col={paper:cs.getPropertyValue('--paper').trim(),ink:cs.getPropertyValue('--ink').trim(),shade:cs.getPropertyValue('--shade').trim(),
+    desk:cs.getPropertyValue('--desk').trim(),hl:cs.getPropertyValue('--hl').trim(),dark:matchMedia('(prefers-color-scheme: dark)').matches&&document.documentElement.dataset.theme!=='light'||document.documentElement.dataset.theme==='dark'};
+  HATCH=[45,62,-38].map(a=>makeHatch(a));GRAIN=makeGrain();
+  inval();req()}
+
+/* ---------- kresebný styl ---------- */
+let HATCH=[],GRAIN=null;
+// Šrafy perem místo ploché výplně „shade“: dlaždice s vodorovnými, lehce zvlněnými
+// a místy přerušenými tahy, natočená o úhel a ukotvená ve světových souřadnicích.
+function makeHatch(angle){const T=128,g=16,cvs=document.createElement('canvas');cvs.width=cvs.height=T;
+  const c=cvs.getContext('2d'),rnd=mulberry32(Math.round(angle*97)+7);
+  c.fillStyle=col.paper;c.fillRect(0,0,T,T);c.strokeStyle=col.ink;c.lineCap='round';
+  for(let y=g/2;y<T;y+=g){const ph=rnd()*6.283,amp=.4+rnd()*1.2,g0=rnd()<.4?10+rnd()*90:-1,g1=g0+8+rnd()*16;
+    c.globalAlpha=.34+rnd()*.22;c.lineWidth=1.8+rnd()*1.2;c.beginPath();let pen=false;
+    for(let x=0;x<=T;x+=4){const yy=y+Math.sin(x/T*12.566+ph)*amp;
+      if(g0>0&&x>g0&&x<g1){pen=false;continue}
+      if(pen)c.lineTo(x,yy);else{c.moveTo(x,yy);pen=true}}
+    c.stroke()}
+  const p=ctx.createPattern(cvs,'repeat');p.setTransform(new DOMMatrix().rotateSelf(angle).scaleSelf(6.5/g));return p}
+// Zrnitost papíru: řídké tečky a vlákna, přes celý obrázek.
+function makeGrain(){const T=256,cvs=document.createElement('canvas');cvs.width=cvs.height=T;
+  const c=cvs.getContext('2d'),rnd=mulberry32(4242);c.fillStyle=col.ink;c.strokeStyle=col.ink;
+  for(let i=0;i<1400;i++){c.globalAlpha=.025+rnd()*.05;const s=.8+rnd()*1.6;c.fillRect(rnd()*T,rnd()*T,s,s)}
+  c.lineWidth=.7;for(let i=0;i<26;i++){c.globalAlpha=.05+rnd()*.05;const x=rnd()*T,y=rnd()*T,a=rnd()*6.283,l=6+rnd()*14;
+    c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+Math.cos(a+.6)*l*.5,y+Math.sin(a+.6)*l*.5,x+Math.cos(a)*l,y+Math.sin(a)*l);c.stroke()}
+  const p=ctx.createPattern(cvs,'repeat');p.setTransform(new DOMMatrix().scaleSelf(.9));return p}
+
+// Podíl kočky, který není zakrytý ničím nakresleným později (0–1).
+// headOnly: jen prvky hlavy (uši, obličej) – kočka se zakrytou hlavou jde špatně poznat, i když je vidět tělo.
+function catVisibility(i,headOnly=false){
+  const els=DL.filter(e=>e.r&&e.c===i&&(!headOnly||e.hd));if(!els.length)return 1;let x0=1/0,y0=1/0,x1=-1/0,y1=-1/0;
+  for(const e of els){x0=Math.min(x0,e.b[0]);y0=Math.min(y0,e.b[1]);x1=Math.max(x1,e.b[2]);y1=Math.max(y1,e.b[3])}
+  const k=1,w=Math.ceil((x1-x0)*k),h=Math.ceil((y1-y0)*k),cvs=document.createElement('canvas');cvs.width=w;cvs.height=h;
+  const c=cvs.getContext('2d',{willReadFrequently:true});
+  const pass=list=>{c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,w,h);c.setTransform(k,0,0,k,-x0*k,-y0*k);c.lineCap='round';c.lineJoin='round';
+    for(const e of list){const b=e.b;if(b[2]<x0||b[0]>x1||b[3]<y0||b[1]>y1)continue;const me=e.r&&e.c===i&&(!headOnly||e.hd)?'#f00':'#00f';
+      if(e.f!=='none'){c.fillStyle=me;c.fill(e.p)}if(e.lw>0){c.lineWidth=e.lw;c.strokeStyle=me;c.stroke(e.p)}}
+    return c.getImageData(0,0,w,h).data};
+  const alone=pass(els),all=pass(DL);let n=0,v=0;
+  for(let p=0;p<alone.length;p+=4)if(alone[p]>128){n++;if(all[p]>128&&all[p+2]<128)v++}
+  return n?v/n:1}
+// Kočku zakrytou skoro celou (třeba autem nebo sousedním keřem) nebo se schovanou hlavou nakreslí navrch,
+// jinak by nešla najít. Scény by to potřebovat neměly – je to pojistka.
+const VIS_MIN=.25,HEAD_MIN=.45;
+const catOk=i=>catVisibility(i)>=VIS_MIN&&catVisibility(i,true)>=HEAD_MIN;
+function liftHidden(){const up=[];
+  for(let i=0;i<CATS.length;i++)if(!catOk(i))up.push(i);
+  if(!up.length)return;for(const i of up)CATS[i].lifted=true;const frame=DL.pop();
+  DL=DL.filter(e=>!(e.r&&up.includes(e.c))).concat(DL.filter(e=>e.r&&up.includes(e.c)),[frame])}
+
+// Sestaví obrázek. Kočka může být v úkrytu zakrytá i objektem z jiné vrstvy (strom přes auto, keř přes květináč),
+// proto se po sestavení změří a úkryty se špatně viditelnou kočkou se vyřadí a výběr se zopakuje (deterministicky
+// ze seedu). Kreslení navrch (liftHidden) je jen nouzová pojistka, když ani po opakování nevyjde.
+function newScene(s){
+  seed=s>>>0;
+  const dry=buildScene(lv,seed,null),bad=new Set();let sel,sc;
+  for(let t=0;t<8;t++){
+    sel=chooseCats(dry.spots,seed,lv,bad);sc=buildScene(lv,seed,sel);DL=sc.L;CATS=sc.cats;
+    const order=[...sel.keys()].sort((a,b)=>a-b);let n=0;   // kočky vznikají v pořadí úkrytů
+    order.forEach((si,ci)=>{CATS[ci].kind=dry.spots[si].kind;if(!catOk(ci)){bad.add(si);n++}});
+    if(!n)break}
+  inval();liftHidden();
+  rings=CATS.map(()=>{const a=[];for(let i=0;i<18;i++)a.push(1+(Math.random()-.5)*.12);return{j:a,a0:Math.random()*6.28}});
+  $('total').textContent=CATS.length;
+  cv.setAttribute('aria-label',`Kreslený obrázek (${LV[lv].name}), ve kterém se schovávají kočky`);
+}
+
+const PALS=[{body:'#f4a259',stripe:'#c4631b'},{body:'#aab4c0',stripe:'#667281'},{body:'#f2dbb0',stripe:'#c49a5c'},{body:'#c79b6d',stripe:'#7a5534'},{body:'#f7f1e6',stripe:'#b9a996'}];
+const DARKPAL={body:'#33333d',stripe:'#33333d'},PINK='#ec8c9e';
+const hx=h=>{h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[n>>16&255,n>>8&255,n&255]};
+function mix(a,b,p){if(p>=1)return b;const A=hx(a),B=hx(b);return'rgb('+A.map((v,i)=>Math.round(v+(B[i]-v)*p)).join(',')+')'}
+const palOf=i=>CATS[i].dark?DARKPAL:PALS[(i*7+seed)%PALS.length];
+function catProg(i,full){if(full||reduce)return 1;const t0=found.get(i);return t0?Math.min(1,(performance.now()-t0)/450):1}
+function fillFor(e,base,p){const c=CATS[e.c],pal=palOf(e.c);
+  switch(e.r){case'body':return mix(base,pal.body,p);case'nose':return mix(base,PINK,p);case'hl':return mix(base,'#ffffff',p);
+    case'eye':return c.kitten?mix(base,'#3f7fc4',p):c.dark?mix(base,'#f2c230',p):base;default:return base}}
+function strokeFor(e,base,p){const pal=palOf(e.c);
+  switch(e.r){case'body':return e.st==='paper'||e.st==='shade'?mix(base,pal.body,p):base;
+    case'detail':return e.st==='paper'||CATS[e.c].dark?mix(base,'#dcdce4',p):base;   // na nalezené černé kočce světlé čáry
+    case'ear':return mix(base,PINK,p);case'stripe':return mix(base,pal.stripe,p);default:return base}}
+function renderList(c,s,vb,full){
+  c.lineCap='round';c.lineJoin='round';const mlw=.9/s;
+  for(const e of DL){const b=e.b;if(vb&&(b[2]<vb[0]||b[0]>vb[2]||b[3]<vb[1]||b[1]>vb[3]))continue;
+    const on=e.r&&found.has(e.c),p=on?catProg(e.c,full):0;
+    // „shade“ se vyplňuje šrafami perem
+    if(e.f!=='none'){c.fillStyle=on?fillFor(e,col[e.f],p):e.f==='shade'?HATCH[Math.floor(e.h*3)]:col[e.f];c.fill(e.p)}
+    if(e.lw>0){
+      // kresba: proměnlivý přítlak pera, slabý druhý tah s posunem a přetažené rohy
+      const lw=Math.max(e.lw*(.78+e.h*.5),mlw);c.lineWidth=lw;c.strokeStyle=on?strokeFor(e,col[e.st],p):col[e.st];c.stroke(e.p);
+      if(e.lw>=1.2){const dx=(e.h-.5)*2.4,dy=((e.h*7.13)%1-.5)*2.4;
+        c.globalAlpha=.3;c.lineWidth=Math.max(lw*.55,mlw);c.translate(dx,dy);c.stroke(e.p);c.translate(-dx,-dy);c.globalAlpha=1}
+      if(e.o){c.lineWidth=Math.max(lw*.7,mlw);c.stroke(e.o)}}}
+}
+/* ---------- dlaždice ----------
+   Obraz se kreslí do dlaždic 512 px v několika úrovních rozlišení (TPX = px displeje na jednotku světa).
+   Zobrazuje se úroveň stejná nebo vyšší než potřebná, takže se obraz jen zmenšuje a je ostrý.
+   Chybějící dlaždici dočasně zastoupí hrubší nebo jemnější hotová. Sousední dlaždice a vedlejší
+   úrovně se předkreslují v nečinnosti, takže při posouvání a zoomu bývají připravené.
+   Nejhrubší úroveň (6 dlaždic) je vždy hotová, obraz tedy nikdy není prázdný. */
+const TS=512,TPX=[.5,1,2,4,8],MAXT=(navigator.deviceMemory||4)<=2?40:96;
+const tiles=new Map(),pool=[],anims=new Map();
+const tkey=(L,x,y)=>L+':'+x+':'+y,tspan=L=>TS/TPX[L];
+function inval(){for(const t of tiles.values())pool.push(t.c);tiles.clear();anims.clear()}
+function renderTile(L,tx,ty,full=true,pre=false){
+  const px=TPX[L],sp=TS/px,x0=tx*sp,y0=ty*sp,k=tkey(L,tx,ty),t=tiles.get(k),c=t?t.c:pool.pop()||document.createElement('canvas');
+  if(c.width!==TS){c.width=c.height=TS}
+  const g=c.getContext('2d');g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,TS,TS);g.setTransform(px,0,0,px,-x0*px,-y0*px);
+  g.fillStyle=col.paper;g.fillRect(0,0,W,H);
+  // kresba končí na okraji papíru (objekty scén můžou přesahovat svět)
+  g.save();g.beginPath();g.rect(0,0,W,H);g.clip();renderList(g,px/dpr,[x0,y0,x0+sp,y0+sp],full);g.restore();
+  if(GRAIN){const a=Math.max(0,x0),b=Math.max(0,y0);g.fillStyle=GRAIN;g.fillRect(a,b,Math.min(W,x0+sp)-a,Math.min(H,y0+sp)-b)}
+  // předkreslené dlaždice jsou při uvolňování paměti na řadě dřív než právě viditelné
+  tiles.set(k,{c,L,tx,ty,used:performance.now()-(pre?1e4:0)});
+  if(tiles.size>MAXT)evict()}
+function evict(){const a=[...tiles.values()].filter(t=>t.L>0).sort((p,q)=>p.used-q.used);
+  for(let i=0;i<a.length&&tiles.size>MAXT;i++){tiles.delete(tkey(a[i].L,a[i].tx,a[i].ty));pool.push(a[i].c)}}
+function tileRange(L,m=0){const sp=tspan(L);
+  return[Math.max(0,Math.floor(cam.x/sp)-m),Math.max(0,Math.floor(cam.y/sp)-m),
+    Math.min(Math.ceil(W/sp)-1,Math.floor((cam.x+vw/cam.s)/sp)+m),Math.min(Math.ceil(H/sp)-1,Math.floor((cam.y+vh/cam.s)/sp)+m)]}
+function levelFor(){const need=cam.s*dpr;for(let L=0;L<TPX.length;L++)if(TPX[L]>=need*.92)return L;return TPX.length-1}
+function catBox(i){const b=[1/0,1/0,-1/0,-1/0];for(const e of DL)if(e.r&&e.c===i){b[0]=Math.min(b[0],e.b[0]);b[1]=Math.min(b[1],e.b[1]);b[2]=Math.max(b[2],e.b[2]);b[3]=Math.max(b[3],e.b[3])}return b}
+function invalBox(b){for(const[k,t]of tiles){const s=tspan(t.L),x0=t.tx*s,y0=t.ty*s;
+  if(x0<b[2]&&x0+s>b[0]&&y0<b[3]&&y0+s>b[1]){tiles.delete(k);pool.push(t.c)}}}
+function drawTiles(now){let more=false;
+  const n0x=Math.ceil(W/tspan(0)),n0y=Math.ceil(H/tspan(0));
+  for(let y=0;y<n0y;y++)for(let x=0;x<n0x;x++)if(!tiles.has(tkey(0,x,y)))renderTile(0,x,y);
+  const L=levelFor(),sp=tspan(L),[ax,ay,bx,by]=tileRange(L),e=1/(cam.s*dpr);
+  // vybarvování nalezené kočky: její viditelné dlaždice se překreslují každý snímek
+  for(const[i,b]of anims){const fin=reduce||now-found.get(i)>=450;
+    for(let y=Math.max(ay,Math.floor(b[1]/sp));y<=Math.min(by,Math.floor(b[3]/sp));y++)
+      for(let x=Math.max(ax,Math.floor(b[0]/sp));x<=Math.min(bx,Math.floor(b[2]/sp));x++)renderTile(L,x,y,fin);
+    if(fin)anims.delete(i);else more=true}
+  // chybějící viditelné dlaždice: od středu, s časovým limitem na snímek (aspoň jedna)
+  const miss=[],cx=(cam.x+vw/cam.s/2)/sp,cy=(cam.y+vh/cam.s/2)/sp,t0=performance.now();
+  for(let y=ay;y<=by;y++)for(let x=ax;x<=bx;x++)if(!tiles.has(tkey(L,x,y)))miss.push([x,y]);
+  miss.sort((p,q)=>Math.hypot(p[0]+.5-cx,p[1]+.5-cy)-Math.hypot(q[0]+.5-cx,q[1]+.5-cy));
+  let n=0;while(miss.length&&(n===0||performance.now()-t0<7)){const[x,y]=miss.shift();renderTile(L,x,y);n++}
+  if(miss.length)more=true;
+  // náhrady za chybějící: nejdřív všechny hrubší úrovně (od nejhrubší), pak jemnější, nakonec hotové dlaždice
+  const drawT=t=>{const s=tspan(t.L);t.used=now;ctx.drawImage(t.c,t.tx*s-e,t.ty*s-e,s+2*e,s+2*e)},seen=new Set();
+  for(let M=0;M<L;M++){const s2=tspan(M);for(const[x,y]of miss){const k=tkey(M,Math.floor(x*sp/s2),Math.floor(y*sp/s2)),t=tiles.get(k);if(t&&!seen.has(k)){seen.add(k);drawT(t)}}}
+  if(L+1<TPX.length)for(const[x,y]of miss)for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){const t=tiles.get(tkey(L+1,x*2+dx,y*2+dy));if(t)drawT(t)}
+  for(let y=ay;y<=by;y++)for(let x=ax;x<=bx;x++){const t=tiles.get(tkey(L,x,y));if(t)drawT(t)}
+  if(!miss.length)prefetch();
+  return more}
+// V nečinnosti předkreslí okolí na aktuální úrovni a viditelnou oblast o úroveň jemnější a hrubší.
+let pfWait=false;
+function prefetch(){if(pfWait)return;pfWait=true;
+  const run=dl=>{pfWait=false;const L=levelFor(),t0=performance.now(),want=[];
+    const more=()=>dl&&dl.timeRemaining?dl.timeRemaining()>3:performance.now()-t0<6;
+    const need=(M,m)=>{if(M<0||M>=TPX.length)return;const[ax,ay,bx,by]=tileRange(M,m);
+      for(let y=ay;y<=by;y++)for(let x=ax;x<=bx;x++)if(!tiles.has(tkey(M,x,y)))want.push([M,x,y])};
+    need(L,1);need(L+1,0);need(L-1,1);
+    while(want.length&&more()&&tiles.size<MAXT-2){const[M,x,y]=want.shift();renderTile(M,x,y,true,true)}
+    if(want.length&&tiles.size<MAXT-2)prefetch()};
+  if(window.requestIdleCallback)requestIdleCallback(run,{timeout:400});else setTimeout(()=>run(null),50)}
+
+function minS(){return Math.min(vw/W,vh/H)*.94}
+function clampCam(c=cam){c.s=clamp(c.s,minS(),MAXS);const ww=vw/c.s,hh=vh/c.s,p=30/c.s,pt=78/c.s;
+  c.x=ww>=W?(W-ww)/2:clamp(c.x,-p,W-ww+p);c.y=hh>=H?(H-hh)/2:clamp(c.y,-pt,H-hh+p);return c}
+function resize(){const d=Math.min(window.devicePixelRatio||1,2.5);if(d!==dpr){dpr=d;inval()}
+  vw=innerWidth;vh=innerHeight;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);clampCam();req()}
+function req(){if(!raf)raf=requestAnimationFrame(draw)}
+
+function draw(){
+  raf=0;const now=performance.now();let more=false;
+  if(tween){const t=Math.min(1,(now-tween.t0)/tween.d),e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    cam.s=tween.a.s+(tween.b.s-tween.a.s)*e;cam.x=tween.a.x+(tween.b.x-tween.a.x)*e;cam.y=tween.a.y+(tween.b.y-tween.a.y)*e;
+    if(t>=1)tween=null;else more=true}
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=col.desk;ctx.fillRect(0,0,cv.width,cv.height);
+  const k=cam.s*dpr;ctx.setTransform(k,0,0,k,-cam.x*k,-cam.y*k);
+  ctx.fillStyle=col.paper;ctx.fillRect(0,0,W,H);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  if(drawTiles(now))more=true;
+  // found rings
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+  if(!col.dark)ctx.globalCompositeOperation='multiply';
+  for(const [i,t0] of found){const c=CATS[i],rg=rings[i],age=now-t0,p=reduce?1:Math.min(1,age/450);if(p<1)more=true;
+    const sc=1+(1-p)*.5,n=rg.j.length,turn=1.12*Math.min(1,p*1.6+.2);
+    ctx.globalAlpha=.6*Math.min(1,p*2);ctx.strokeStyle=col.hl;ctx.lineWidth=Math.max(c.r*.12,4/cam.s);ctx.beginPath();
+    const steps=Math.round(40*turn);for(let s=0;s<=steps;s++){const f=s/40,a=rg.a0+f*6.283,jj=rg.j[Math.floor(f*n)%n],rad=c.r*1.08*sc*jj*(1+f*.06);
+      const x=c.x+Math.cos(a)*rad,y=c.y+Math.sin(a)*rad*.92;s?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+    ctx.stroke()}
+  ctx.restore();
+  if(hint){const age=now-hint.t0;if(age>4200)hint=null;else{more=true;const pulse=reduce?0:Math.sin(age/260)*.05;
+    ctx.save();ctx.strokeStyle=col.ink;ctx.globalAlpha=Math.min(1,(4200-age)/600);ctx.lineWidth=Math.max(3,3/cam.s);
+    ctx.setLineDash([14/cam.s,10/cam.s]);ctx.lineDashOffset=-age/40/cam.s;ctx.beginPath();ctx.arc(hint.x,hint.y,hint.r*(1+pulse),0,6.283);ctx.stroke();ctx.restore()}}
+  ripples=ripples.filter(r=>now-r.t0<450);
+  for(const r of ripples){const p=(now-r.t0)/450;more=true;ctx.save();ctx.strokeStyle=col.ink;ctx.globalAlpha=(1-p)*.6;ctx.lineWidth=2/cam.s;
+    ctx.beginPath();ctx.arc(r.x,r.y,(6+p*22)/cam.s,0,6.283);ctx.stroke();ctx.restore()}
+  if(more)req();
+}
+
+function animateTo(b,d=550){b=clampCam({...b});if(reduce){Object.assign(cam,b);req();return}tween={a:{...cam},b,t0:performance.now(),d};req()}
+function zoomAround(sx,sy,f,anim=true){const wx=cam.x+sx/cam.s,wy=cam.y+sy/cam.s,s=clamp(cam.s*f,minS(),MAXS);
+  const b={s,x:wx-sx/s,y:wy-sy/s};if(anim)animateTo(b,300);else{Object.assign(cam,clampCam(b));req()}}
+function fit(){animateTo({s:minS(),x:0,y:0})}
+
+/* input */
+const ptrs=new Map();let tapI=null,pinch=null,lastMiss={t:0,x:0,y:0};
+const pd=()=>{const[a,b]=[...ptrs.values()];return{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,d:Math.hypot(a.x-b.x,a.y-b.y)||1}};
+cv.addEventListener('pointerdown',e=>{try{cv.setPointerCapture(e.pointerId)}catch(err){}ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});tween=null;
+  if(ptrs.size===1){tapI={x:e.clientX,y:e.clientY,t:performance.now(),moved:false};cv.classList.add('drag')}
+  else{tapI=null;pinch=ptrs.size===2?pd():null}});
+cv.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===1){cam.x-=dx/cam.s;cam.y-=dy/cam.s;clampCam();req();if(tapI&&Math.hypot(e.clientX-tapI.x,e.clientY-tapI.y)>9)tapI.moved=true}
+  else if(ptrs.size===2){const n=pd();if(pinch){const wx=cam.x+pinch.cx/cam.s,wy=cam.y+pinch.cy/cam.s;cam.s=clamp(cam.s*n.d/pinch.d,minS(),MAXS);
+    cam.x=wx-n.cx/cam.s;cam.y=wy-n.cy/cam.s;clampCam();req()}pinch=n}});
+function up(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);
+  if(e.type==='pointerup'&&ptrs.size===0&&tapI&&!tapI.moved&&performance.now()-tapI.t<600)tap(e.clientX,e.clientY);
+  if(ptrs.size===0){tapI=null;cv.classList.remove('drag')}
+  pinch=ptrs.size===2?pd():null}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+cv.addEventListener('wheel',e=>{e.preventDefault();tween=null;
+  zoomAround(e.clientX,e.clientY,Math.exp(-e.deltaY*(e.deltaMode?0.05:0.0022)),false)},{passive:false});
+
+function tap(sx,sy){
+  if(done)return;
+  const wx=cam.x+sx/cam.s,wy=cam.y+sy/cam.s;let best=-1,bd=1e9;
+  let onFound=false;
+  // tolerance ťuknutí: aspoň 14 jednotek světa i u malých koček, plus pár pixelů podle přiblížení
+  CATS.forEach((c,i)=>{const r=Math.max(c.r,14),d=Math.hypot(c.x-wx,c.y-wy),tol=r*1.1+Math.min(8/cam.s,r*.6);if(d>=tol)return;
+    if(found.has(i)){onFound=true;return}if(d/tol<bd){bd=d/tol;best=i}});
+  if(best>=0){markFound(best);return}
+  // ťuknutí na už nalezenou kočku není minutí: žádný kroužek ani přiblížení dvojitým ťuknutím
+  if(onFound){lastMiss.t=0;return}
+  const now=performance.now();
+  if(now-lastMiss.t<320&&Math.hypot(sx-lastMiss.x,sy-lastMiss.y)<30){zoomAround(sx,sy,2.2);lastMiss.t=0;return}
+  lastMiss={t:now,x:sx,y:sy};ripples.push({x:wx,y:wy,t0:now});req();
+}
+const cheers=['Mňau!','Mám tě!','Tady jsi!','Našel se!','Chycen!'];
+function markFound(i){
+  found.set(i,performance.now());hint=null;{const b=catBox(i);invalBox(b);anims.set(i,b)}if(navigator.vibrate)try{navigator.vibrate(18)}catch(e){}
+  const c=CATS[i];toast(c.kitten?'Koťátko! '+found.size+' / '+CATS.length:cheers[Math.floor(Math.random()*cheers.length)]+' '+found.size+' / '+CATS.length);
+  ui();save();req();
+  if(found.size===CATS.length){
+    // nejlepší čas se zapíše hned; karta se ukáže jen, když hráč mezitím nepřepnul úroveň ani obrázek
+    done=true;const at={lv,seed,s:elapsed,hints,rec:store.best[lv]==null||elapsed<store.best[lv]};if(at.rec)store.best[lv]=elapsed;save();
+    // kartu výsledku neukázat, když hráč mezitím přepnul úroveň nebo otevřel úvodní kartu (ta pak nabídne „Prohlédnout“)
+    setTimeout(()=>{if(done&&lv===at.lv&&seed===at.seed&&$('intro').hidden)showDone(at)},1100)}
+}
+let tt=0;function toast(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1300)}
+const fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function ui(){$('found').textContent=found.size;$('pf').style.width=(CATS.length?found.size/CATS.length*100:0)+'%';$('time').textContent=fmt(elapsed)}
+
+// Stav: rozehraná hra pro každou úroveň zvlášť + nejlepší časy.
+let store={cur:'mesto',games:{},best:{}};
+// Vývoj: ?level=louka&seed=5 otevře konkrétní obrázek a nic neukládá.
+const DEV=new URLSearchParams(location.search);
+// Verze scény: po předělání prostředí (jiné rozmístění koček pro stejný seed) se v scenes/<id>.js zvýší `ver`
+// a rozehrané hry se starou verzí se neobnoví.
+const sver=id=>SCENES[id].ver||1;
+function save(){if(DEV.has('level'))return;store.cur=lv;store.games[lv]={seed,found:[...found.keys()],hints,elapsed,done,sv:sver(lv)};
+  try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
+// Uložený stav se před použitím pročistí: poškozená hra nebo neznámá úroveň se zahodí, ne aby shodily start.
+function cleanGame(g){if(!g||typeof g!=='object'||!Number.isFinite(g.seed))return null;
+  const found=Array.isArray(g.found)?[...new Set(g.found.filter(i=>Number.isInteger(i)&&i>=0&&i<NCATS))]:[];
+  return{seed:g.seed>>>0,found,hints:Math.max(0,+g.hints||0),elapsed:Math.max(0,Math.floor(+g.elapsed||0)),
+    done:g.done===true||found.length>=NCATS,sv:+g.sv||1}}
+function cleanStore(s){const games={},best={};
+  if(s.games&&typeof s.games==='object')for(const[k,g]of Object.entries(s.games)){const c=SCENES[k]&&cleanGame(g);if(c)games[k]=c}
+  if(s.best&&typeof s.best==='object')for(const[k,v]of Object.entries(s.best))if(SCENES[k]&&Number.isFinite(v)&&v>0)best[k]=v;
+  return{cur:SCENES[s.cur]?s.cur:'mesto',games,best}}
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&typeof s==='object')return cleanStore(s)}catch(e){}
+  try{const o=JSON.parse(localStorage.getItem(OLDKEY)||'null');if(o&&typeof o==='object'){
+    // převod starého uložení (jen město); starý klíč se smaže, nový stav se hned uloží
+    if(!DEV.has('level'))localStorage.removeItem(OLDKEY);return cleanStore({cur:'mesto',games:{mesto:o}})}}catch(e){}
+  return{cur:'mesto',games:{},best:{}}}
+
+function camHome(){cam.s=Math.max(minS(),Math.min(MAXS,minS()*1.7));cam.x=(W-vw/cam.s)/2;cam.y=(H-vh/cam.s)/2+120;clampCam()}
+function startNew(){
+  newScene(Math.floor(Math.random()*4294967295));found=new Map();hints=0;elapsed=0;done=false;hint=null;tween=null;ripples=[];inval();
+  ui();save();camHome();req();renderIntro();
+}
+function resume(g){
+  newScene(g.seed);found=new Map((g.found||[]).filter(i=>i<CATS.length).map(i=>[i,0]));hints=g.hints||0;elapsed=g.elapsed||0;done=false;
+  hint=null;tween=null;ripples=[];inval();camHome();ui();req();renderIntro();
+}
+let introNote='';
+function openLevel(id){lv=LV[id]?id:'mesto';const g=store.games[lv];
+  if(g&&!g.done&&(g.sv||1)===sver(lv))resume(g);
+  else{// rozehraná hra ze starší verze prostředí (jiné rozmístění koček) se neobnoví – hráči to vysvětlíme
+    introNote=g&&!g.done&&g.found.length?'Tahle úroveň je nově nakreslená, rozehraný obrázek proto začíná znovu. ':'';startNew()}
+  save()}
+// Úvodní karta: ťuknutí na prostředí rovnou spustí hru (rozehranou obnoví, dohranou začne znovu)
+function renderIntro(){const L=LV[lv];
+  $('introNew').textContent=`Nový obrázek: ${L.name}`;$('introNew').hidden=!found.size||done;
+  $('levels').replaceChildren(...LEVELS.map(l=>{const b=document.createElement('button'),g=store.games[l.id],best=store.best[l.id],st=document.createElement('small');
+    b.className='lv';b.setAttribute('aria-pressed',l.id===lv);b.textContent=l.name;
+    st.textContent=g&&!g.done&&g.found&&g.found.length&&(g.sv||1)===sver(l.id)?`rozehráno ${g.found.length} / ${NCATS}`:best!=null?'✓ '+fmt(best):' ';
+    b.append(st);b.onclick=()=>playLevel(l.id);return b}));
+}
+function playLevel(id){
+  if(id!==lv||done)openLevel(id);
+  const note=introNote;introNote='';$('intro').hidden=true;toast(note?note.trim():LV[lv].name);focusBar()}
+const pressedLv=()=>$('levels').querySelector('[aria-pressed="true"]');
+const nextLevel=()=>LEVELS[(LEVELS.findIndex(l=>l.id===lv)+1)%LEVELS.length];
+function showDone({s,hints,rec}){
+  $('doneTitle').textContent=`Všech ${CATS.length} nalezeno!`;
+  $('doneText').textContent=`Hledání trvalo ${fmt(s)}`+(hints?`, nápovědu jsi použil(a) ${hints}×.`:' a obešlo se bez nápovědy.')
+    +(rec?' To je tvůj nejlepší čas v této úrovni.':` Nejlepší čas: ${fmt(store.best[lv])}.`);
+  $('nextBtn').textContent=`Další: ${nextLevel().name}`;
+  $('done').hidden=false;$('nextBtn').focus();
+}
+
+$('introNew').onclick=()=>{if(!done&&found.size>0&&!confirm('Začít nový obrázek? Rozehrané hledání se ztratí.'))return;introNote='';startNew();$('intro').hidden=true;focusBar()};
+// „Další“ spustí další úroveň rovnou (bez úvodní karty), jen krátce ukáže její název
+// po zavření karty dát fokus na lištu (až se zruší inert), ať uživatel klávesnice neskončí na <body>
+const focusBar=()=>setTimeout(()=>$('lvBtn').focus(),0);
+$('nextBtn').onclick=()=>{const n=nextLevel();$('done').hidden=true;openLevel(n.id);introNote='';$('intro').hidden=true;toast(n.name);focusBar()};
+$('againBtn').onclick=()=>{$('done').hidden=true;startNew();$('intro').hidden=false};
+$('lookBtn').onclick=()=>{$('done').hidden=true;fit();focusBar()};
+$('newBtn').onclick=()=>{if(!done&&found.size>0&&!confirm('Začít nový obrázek? Rozehrané hledání se ztratí.'))return;startNew();$('intro').hidden=false};
+$('lvBtn').onclick=()=>{renderIntro();$('intro').hidden=false;pressedLv().focus()};
+$('hintBtn').onclick=()=>{
+  if(done)return;const left=CATS.map((c,i)=>i).filter(i=>!found.has(i));if(!left.length)return;
+  const c=CATS[left[Math.floor(Math.random()*left.length)]],a=Math.random()*6.283,r=230,off=Math.random()*r*.55;
+  hint={x:c.x+Math.cos(a)*off,y:c.y+Math.sin(a)*off,r,t0:performance.now()};hints++;save();
+  const s=clamp(Math.min(vw,vh)/(r*2.7),minS(),MAXS);animateTo({s,x:hint.x-vw/2/s,y:hint.y-vh/2/s},700);
+};
+$('zin').onclick=()=>zoomAround(vw/2,vh/2,1.7);
+$('zout').onclick=()=>zoomAround(vw/2,vh/2,1/1.7);
+$('zfit').onclick=fit;
+addEventListener('keydown',e=>{if(e.target.tagName==='BUTTON'&&(e.key===' '||e.key==='Enter'))return;
+  if(!$('intro').hidden||!$('done').hidden)return;   // za otevřenou kartou se kamera nehýbe
+  const st=80/cam.s;
+  if(e.key==='+'||e.key==='=')zoomAround(vw/2,vh/2,1.4);else if(e.key==='-')zoomAround(vw/2,vh/2,1/1.4);
+  else if(e.key==='ArrowLeft'){cam.x-=st;clampCam();req()}else if(e.key==='ArrowRight'){cam.x+=st;clampCam();req()}
+  else if(e.key==='ArrowUp'){cam.y-=st;clampCam();req()}else if(e.key==='ArrowDown'){cam.y+=st;clampCam();req()}});
+addEventListener('resize',resize);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors);
+new MutationObserver(readColors).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+setInterval(()=>{if(!done&&$('intro').hidden&&$('done').hidden&&!document.hidden){elapsed++;$('time').textContent=fmt(elapsed);if(elapsed%5===0)save()}},1000);
+// při zavření nebo schování stránky uložit, ať se neztratí posledních pár sekund
+addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
+// Otevřená karta je modální: prvky za ní jsou nedostupné (inert) a fokus skočí do karty.
+function syncModal(m,first){const open=!$('intro').hidden||!$('done').hidden;
+  for(const el of[document.querySelector('.bar'),document.querySelector('.zoom'),cv])el.inert=open;
+  if(m&&!m.hidden&&!m.contains(document.activeElement))(typeof first==='function'?first():$(first)).focus()}
+new MutationObserver(()=>syncModal($('intro'),pressedLv)).observe($('intro'),{attributes:true,attributeFilter:['hidden']});
+new MutationObserver(()=>syncModal($('done'),'nextBtn')).observe($('done'),{attributes:true,attributeFilter:['hidden']});
+
+/* boot */
+resize();readColors();
+store=load();
+if(DEV.has('level')&&SCENES[DEV.get('level')]){lv=DEV.get('level');resume({seed:+(DEV.get('seed')||1)});$('intro').hidden=true}
+else openLevel(store.cur);
+syncModal($('intro'),pressedLv);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(req);
+
+/* PWA */
+if('serviceWorker' in navigator&&location.protocol!=='file:')addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+let deferredPrompt=null;
+// oddíl s instalací je vidět, jen když je co nabídnout
+const showInstall=(id,on)=>{$(id).hidden=!on;$('installBox').hidden=$('installAndroid').hidden&&$('installIos').hidden};
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(!standalone)showInstall('installAndroid',true)});
+$('installBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice.catch(()=>{});deferredPrompt=null;showInstall('installAndroid',false)};
+addEventListener('appinstalled',()=>{showInstall('installAndroid',false);toast('Nainstalováno')});
+if(!standalone&&/iphone|ipad|ipod/i.test(navigator.userAgent)||(!standalone&&navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))showInstall('installIos',true);
+document.addEventListener('gesturestart',e=>e.preventDefault());
+</script>
+</body>
+</html>
